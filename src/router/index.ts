@@ -52,40 +52,33 @@ const routes = [
   },
   {
     path: '/dashboard',
-    component: () => import('@/layouts/DashboardLayout.vue'),
-    meta: { requiresAuth: true },
-    children: [
-      {
-        path: '',
-        name: 'Dashboard',
-        component: DashboardPage
-      },
-      {
-        path: 'create',
-        name: 'CreatePost',
-        component: CreatePostPage
-      },
-      {
-        path: 'posts',
-        name: 'Posts',
-        component: PostsPage
-      },
-      {
-        path: 'posts/:id/edit',
-        name: 'EditPost',
-        component: EditPostPage
-      },
-      {
-        path: 'profile',
-        name: 'Profile',
-        component: ProfilePage
-      },
-      {
-        path: 'settings',
-        name: 'Settings',
-        component: SettingsPage
-      }
-    ]
+    name: 'Dashboard',
+    component: DashboardPage
+  },
+  {
+    path: '/dashboard/create',
+    name: 'CreatePost',
+    component: CreatePostPage
+  },
+  {
+    path: '/dashboard/posts',
+    name: 'Posts',
+    component: PostsPage
+  },
+  {
+    path: '/dashboard/posts/:id/edit',
+    name: 'EditPost',
+    component: EditPostPage
+  },
+  {
+    path: '/dashboard/profile',
+    name: 'Profile',
+    component: ProfilePage
+  },
+  {
+    path: '/dashboard/settings',
+    name: 'Settings',
+    component: SettingsPage
   }
 ]
 

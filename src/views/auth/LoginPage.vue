@@ -102,6 +102,7 @@
 
 <script>
 import { useAuth } from '@/composables/useAuth'
+import { authAPI } from '@/services/api'
 
 export default {
   name: 'LoginPage',
@@ -120,7 +121,7 @@ export default {
       isLoading: false
     }
   },
-  created() {
+  mounted() {
     // Check if user is already authenticated
     const { isAuthenticated } = useAuth()
     if (isAuthenticated.value) {
@@ -159,19 +160,13 @@ export default {
 
       this.isLoading = true
       try {
-        // Simulate API call - replace with actual API endpoint
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        // Create mock user data (replace with actual API response)
-        const userData = {
-          id: 1,
-          name: 'John Doe',
+        const response = await authAPI.login({
           email: this.form.email,
-          role: 'user'
-        }
+          password: this.form.password
+        })
 
         const { setAuth } = useAuth()
-        setAuth('dummy-token', userData)
+        setAuth(response.data.token, response.data.user)
 
         if (this.form.remember) {
           localStorage.setItem('rememberMe', 'true')
@@ -181,7 +176,11 @@ export default {
         this.$router.push('/dashboard')
       } catch (err) {
         console.error('Login failed:', err)
-        this.error = 'Invalid email or password'
+        if (err.response?.data?.message) {
+          this.error = err.response.data.message
+        } else {
+          this.error = 'Invalid email or password'
+        }
       } finally {
         this.isLoading = false
       }

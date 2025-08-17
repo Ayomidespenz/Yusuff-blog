@@ -14,6 +14,7 @@
     "@heroicons/vue": "^2.0.18",
     "@popperjs/core": "^2.11.8",
     "aos": "^2.3.4",
+    "axios": "^1.11.0",
     "bootstrap": "^5.3.7",
     "bootstrap-icons": "^1.13.1",
     "bootstrap-vue-3": "^0.3.12",

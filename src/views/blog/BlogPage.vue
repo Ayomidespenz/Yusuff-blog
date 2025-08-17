@@ -6,7 +6,7 @@
         <!-- Navigation Bar -->
         <nav class="navbar navbar-expand-lg navbar-light px-0 mb-3">
           <div class="container-fluid px-0">
-            <router-link to="/" class="navbar-brand d-flex align-items-center">
+            <button @click="goToHome" class="navbar-brand d-flex align-items-center btn btn-link border-0 p-0">
               <div class="bg-primary rounded-3 p-2 me-2">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -14,7 +14,7 @@
                 </svg>
               </div>
               <span class="h5 mb-0">Back to Home</span>
-            </router-link>
+            </button>
           </div>
         </nav>
 
@@ -54,7 +54,30 @@
 
     <!-- Blog Posts -->
     <div class="container pb-5">
-      <div class="row g-4">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Loading posts...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="text-center py-5">
+        <div class="text-danger mb-3">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <h5 class="text-danger">Failed to load posts</h5>
+        <p class="text-muted">{{ error }}</p>
+        <button @click="loadPosts" class="btn btn-primary">Try Again</button>
+      </div>
+
+      <!-- Posts Grid -->
+      <div v-else class="row g-4">
         <div class="col-md-6 col-lg-4" v-for="post in filteredPosts" :key="post.id">
           <div class="card h-100 border-0 shadow-sm">
             <router-link :to="'/blog/' + post.id" class="text-decoration-none">
@@ -99,7 +122,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
-                    {{ post.comments?.length || 0 }}
+                    {{ post.commentsCount }}
                   </button>
                 </div>
                 <div>
@@ -144,8 +167,9 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
+import { postsAPI, likesAPI, commentsAPI } from '@/services/api'
 import CommentModal from '@/components/blog/CommentModal.vue'
 
 export default {
@@ -157,197 +181,231 @@ export default {
     return {
       searchQuery: '',
       selectedCategory: '',
-      categories: ['Technology', 'Design', 'Development', 'Business', 'Lifestyle'],
-      posts: [
-        {
-          id: 1,
-          title: 'Getting Started with Vue.js 3',
-          excerpt: 'Learn the fundamentals of Vue.js 3 and build modern web applications with the Composition API.',
-          image: '/nextjs-development.png',
-          category: 'Development',
-          author: {
-            name: 'John Doe',
-            avatar: '/placeholder-user.jpg'
-          },
-          date: 'Aug 15, 2025',
-          views: '2.5K',
-          isLiked: false,
-          likes: 189,
-          comments: [
-            {
-              id: 1,
-              content: 'Great article! Really helped me understand Vue 3 better.',
-              date: 'Aug 15, 2025',
-              author: {
-                name: 'Alice Johnson',
-                avatar: '/placeholder-user.jpg'
-              }
-            },
-            {
-              id: 2,
-              content: 'Looking forward to more content like this!',
-              date: 'Aug 15, 2025',
-              author: {
-                name: 'Bob Smith',
-                avatar: '/placeholder-user.jpg'
-              }
-            }
-          ]
-        },
-        {
-          id: 2,
-          title: 'Design Systems in 2025',
-          excerpt: 'Explore the latest trends and best practices in creating scalable design systems.',
-          image: '/react-components.png',
-          category: 'Design',
-          author: {
-            name: 'Sarah Wilson',
-            avatar: '/placeholder-user.jpg'
-          },
-          date: 'Aug 14, 2025',
-          views: '1.8K',
-          comments: 16,
-          likes: 145
-        },
-        {
-          id: 3,
-          title: 'The Future of Web Development',
-          excerpt: 'Discover upcoming technologies and trends that will shape the future of web development.',
-          image: '/future-web-development.png',
-          category: 'Technology',
-          author: {
-            name: 'Michael Chen',
-            avatar: '/placeholder-user.jpg'
-          },
-          date: 'Aug 13, 2025',
-          views: '3.2K',
-          comments: 32,
-          likes: 267
-        },
-        {
-          id: 4,
-          title: 'Building a Developer Portfolio',
-          excerpt: 'Tips and strategies for creating an impressive developer portfolio that stands out.',
-          image: '/developer-journey.png',
-          category: 'Development',
-          author: {
-            name: 'Emily Rodriguez',
-            avatar: '/placeholder-user.jpg'
-          },
-          date: 'Aug 12, 2025',
-          views: '1.5K',
-          comments: 18,
-          likes: 134
-        }
-      ]
+      categories: [],
+      posts: [],
+      isLoading: false,
+      error: null
     }
   },
   computed: {
     filteredPosts() {
       return this.posts.filter(post => {
         const matchesSearch = post.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-                            post.excerpt.toLowerCase().includes(this.searchQuery.toLowerCase())
+                            (post.body && post.body.toLowerCase().includes(this.searchQuery.toLowerCase()))
         const matchesCategory = !this.selectedCategory || post.category === this.selectedCategory
         return matchesSearch && matchesCategory
       })
     }
   },
-  created() {
-    // Initialize posts with stored likes and comments
-    this.posts.forEach(post => {
-      // Load like state
-      const isLiked = localStorage.getItem(`post_${post.id}_liked`) === 'true'
-      post.isLiked = isLiked
-
-      // Load likes count
-      const storedLikes = localStorage.getItem(`post_${post.id}_likes`)
-      if (storedLikes) {
-        const likesCount = parseInt(storedLikes, 10)
-        post.likes = likesCount >= 1000 ? (likesCount / 1000).toFixed(1) + 'K' : likesCount
-      }
-
-      // Load comments
-      const storedComments = localStorage.getItem(`post_${post.id}_comments`)
-      if (storedComments) {
-        post.comments = JSON.parse(storedComments)
-      } else {
-        post.comments = []
-      }
-    })
+  async mounted() {
+    await Promise.all([
+      this.loadPosts().catch(error => {
+        console.error('Error loading posts:', error)
+      }),
+      this.loadCategories().catch(error => {
+        console.error('Error loading categories:', error)
+      })
+    ])
   },
   methods: {
+    goToHome() {
+      this.$router.push('/')
+    },
+    
+    async loadPosts() {
+      if (this.isLoading) return; // Prevent multiple simultaneous calls
+      
+      this.isLoading = true
+      this.error = null
+      try {
+        // Get all published posts
+        const response = await postsAPI.getAll({
+          per_page: 50,
+          status: 'published',
+          sort: 'latest' // Get latest posts first
+        })
+        
+        // Check if we have a valid response
+        if (!response?.data?.success) {
+          throw new Error('Failed to load posts')
+        }
+
+        const postsData = response.data.data?.data
+        if (!Array.isArray(postsData)) {
+          throw new Error('Invalid posts data received')
+        }
+
+        this.posts = postsData.map(post => {
+          const excerpt = post.body 
+            ? post.body.length > 150 
+              ? post.body.substring(0, 150) + '...'
+              : post.body
+            : ''
+
+          return {
+            id: post.id,
+            title: post.title,
+            body: post.body,
+            excerpt: excerpt,
+            image: post.featured_image && post.featured_image.startsWith('http')
+              ? post.featured_image 
+              : post.featured_image
+                ? `${post.featured_image}`
+                : '/placeholder.jpg',
+            category: post.category || 'Uncategorized',
+            author: {
+              name: post.user?.name || 'Anonymous',
+              avatar: post.user?.avatar 
+                ? post.user.avatar.startsWith('http')
+                  ? post.user.avatar
+                  : `${post.user.avatar}`
+                : '/placeholder-user.jpg'
+            },
+            date: post.created_at 
+              ? new Date(post.created_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })
+              : 'No date',
+            views: post.views_count || 0,
+            likes: post.likes_count || 0,
+            comments: Array.isArray(post.comments) ? post.comments : [],
+            commentsCount: post.comments_count || 0,
+            isLiked: post.liked || false
+          }
+        })
+
+        if (this.posts.length === 0) {
+          this.error = 'No posts found'
+        }
+      } catch (error) {
+        console.error('Error loading posts:', error)
+        if (error.response?.status === 401) {
+          this.error = 'Please log in to view posts'
+          this.$router.push('/auth/login')
+        } else if (error.response?.status === 404) {
+          this.error = 'No posts found'
+        } else if (error.response?.data?.message) {
+          this.error = error.response.data.message
+        } else if (error.message) {
+          this.error = error.message
+        } else {
+          this.error = 'Failed to load posts. Please check your internet connection and try again.'
+        }
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async loadCategories() {
+      try {
+        const response = await postsAPI.categories()
+        if (response.data.success && response.data.data) {
+          this.categories = response.data.data
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error)
+        // Categories are not critical, so we don't show an error
+      }
+    },
+
     filterPosts() {
       // The filtering is handled by the computed property
     },
-    toggleLike(post) {
+    async toggleLike(post) {
       const { user } = useAuth()
       if (!user.value) {
         this.$router.push('/auth/login')
         return
       }
 
-      // Toggle like state and update count
-      if (typeof post.isLiked === 'undefined') {
-        post.isLiked = false
-      }
-      post.isLiked = !post.isLiked
-
-      // Handle likes count
-      let likesCount = 0
-      if (typeof post.likes === 'string') {
-        // Convert "2.5K" to 2500
-        likesCount = parseFloat(post.likes.replace('K', '')) * 1000
-      } else {
-        likesCount = post.likes
-      }
-
-      likesCount += post.isLiked ? 1 : -1
-
-      // Format likes for display
-      if (likesCount >= 1000) {
-        post.likes = (likesCount / 1000).toFixed(1) + 'K'
-      } else {
-        post.likes = likesCount
-      }
-
-      // Store like state in localStorage
-      localStorage.setItem(`post_${post.id}_liked`, post.isLiked.toString())
-      localStorage.setItem(`post_${post.id}_likes`, String(likesCount))
-    },
-    addComment(postId, comment) {
-      const { user } = useAuth()
-      if (!user.value) {
-        this.$router.push('/auth/login')
-        return
-      }
-
-      const post = this.posts.find(p => p.id === postId)
-      if (post) {
-        if (!Array.isArray(post.comments)) {
-          post.comments = []
+      try {
+        if (post.isLiked) {
+          await likesAPI.unlike(post.id)
+          post.likes--
+        } else {
+          await likesAPI.like(post.id)
+          post.likes++
         }
+        post.isLiked = !post.isLiked
+      } catch (error) {
+        console.error('Error toggling like:', error)
+        // Revert the UI change if API call failed
+        post.isLiked = !post.isLiked
+        if (post.isLiked) {
+          post.likes++
+        } else {
+          post.likes--
+        }
+      }
+    },
+    async addComment(postId, commentContent) {
+      const { user } = useAuth()
+      if (!user.value) {
+        this.$router.push('/auth/login')
+        return
+      }
+
+      try {
+        const response = await commentsAPI.create(postId, { content: commentContent })
         
-        // Add the new comment
-        const newComment = {
-          id: Date.now(),
-          content: comment,
-          date: 'Just now',
-          author: {
-            name: user.value.name,
-            avatar: user.value.avatar || '/placeholder-user.jpg'
+        if (response.data && response.data.data) {
+          const newComment = response.data.data
+          const post = this.posts.find(p => p.id === postId)
+          
+          if (post) {
+            if (!Array.isArray(post.comments)) {
+              post.comments = []
+            }
+            
+            post.comments.unshift({
+              id: newComment.id,
+              content: newComment.content,
+              date: 'Just now',
+              author: {
+                name: user.value.name,
+                avatar: user.value.avatar || '/placeholder-user.jpg'
+              }
+            })
+            
+            // Update the comments count
+            post.commentsCount = (post.commentsCount || 0) + 1
           }
+        } else {
+          throw new Error('Invalid response from server')
         }
-        
-        post.comments.unshift(newComment)
-        
-        // Store comments in localStorage
-        localStorage.setItem(`post_${post.id}_comments`, JSON.stringify(post.comments))
+      } catch (error) {
+        console.error('Error adding comment:', error)
+        const errorMessage = error.response?.data?.message || 'Failed to add comment. Please try again.'
+        alert(errorMessage)
       }
     },
-    openComments(post) {
-      if (!Array.isArray(post.comments)) {
-        // Initialize comments array if it doesn't exist
-        post.comments = JSON.parse(localStorage.getItem(`post_${post.id}_comments`) || '[]')
+    async openComments(post) {
+      if (!post.comments) {
+        post.comments = []
+      }
+      
+      try {
+        const response = await commentsAPI.getByPost(post.id)
+        if (response?.data?.success) {
+          post.comments = (response.data.data || []).map(comment => ({
+            id: comment.id,
+            content: comment.content,
+            date: new Date(comment.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }),
+            author: {
+              name: comment.user?.name || 'Anonymous',
+              avatar: comment.user?.avatar || '/placeholder-user.jpg'
+            }
+          }))
+        }
+      } catch (error) {
+        console.error('Error loading comments:', error)
+        post.comments = []
       }
     }
   }
@@ -355,6 +413,14 @@ export default {
 </script>
 
 <style scoped>
+.btn-link {
+  text-decoration: none;
+}
+
+.btn-link:hover {
+  opacity: 0.85;
+}
+
 .card {
   transition: transform 0.2s, box-shadow 0.2s;
 }

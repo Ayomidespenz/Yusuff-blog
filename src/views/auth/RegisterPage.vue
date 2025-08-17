@@ -12,7 +12,7 @@
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                     <circle cx="9" cy="7" r="4"/>
                     <path d="m22 21-2-2"/>
-                    <path d="m16 16 2 2"/>
+                    <path d="M16 16h6"/>
                   </svg>
                 </div>
                 <h2 class="h4 fw-bold text-primary mb-1">Create Account</h2>
@@ -21,29 +21,23 @@
 
               <!-- Register Form -->
               <form @submit.prevent="handleRegister">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <label for="firstName" class="form-label fw-medium">First Name</label>
-                    <input 
-                      type="text" 
-                      class="form-control" 
-                      id="firstName" 
-                      v-model="form.firstName"
-                      placeholder="First name"
-                      required
-                    >
-                  </div>
-                  
-                  <div class="col-md-6 mb-3">
-                    <label for="lastName" class="form-label fw-medium">Last Name</label>
-                    <input 
-                      type="text" 
-                      class="form-control" 
-                      id="lastName" 
-                      v-model="form.lastName"
-                      placeholder="Last name"
-                      required
-                    >
+                <div v-if="error" class="alert alert-danger mb-3">
+                  {{ error }}
+                </div>
+                
+                <div class="mb-3">
+                  <label for="name" class="form-label fw-medium">Full Name</label>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="name" 
+                    v-model="form.name"
+                    placeholder="Enter your full name"
+                    :class="{ 'is-invalid': formErrors.name }"
+                    required
+                  >
+                  <div class="invalid-feedback" v-if="formErrors.name">
+                    {{ formErrors.name }}
                   </div>
                 </div>
                 
@@ -51,66 +45,60 @@
                   <label for="email" class="form-label fw-medium">Email Address</label>
                   <input 
                     type="email" 
-                    class="form-control form-control-lg" 
+                    class="form-control" 
                     id="email" 
                     v-model="form.email"
                     placeholder="Enter your email"
+                    :class="{ 'is-invalid': formErrors.email }"
                     required
                   >
-                </div>
-                
-                <div class="mb-3">
-                  <label for="username" class="form-label fw-medium">Username</label>
-                  <input 
-                    type="text" 
-                    class="form-control form-control-lg" 
-                    id="username" 
-                    v-model="form.username"
-                    placeholder="Choose a username"
-                    required
-                  >
+                  <div class="invalid-feedback" v-if="formErrors.email">
+                    {{ formErrors.email }}
+                  </div>
                 </div>
                 
                 <div class="mb-3">
                   <label for="password" class="form-label fw-medium">Password</label>
                   <input 
                     type="password" 
-                    class="form-control form-control-lg" 
+                    class="form-control" 
                     id="password" 
                     v-model="form.password"
                     placeholder="Create a password"
+                    :class="{ 'is-invalid': formErrors.password }"
                     required
                   >
-                  <div class="form-text">Password must be at least 8 characters long</div>
-                </div>
-                
-                <div class="mb-3">
-                  <label for="confirmPassword" class="form-label fw-medium">Confirm Password</label>
-                  <input 
-                    type="password" 
-                    class="form-control form-control-lg" 
-                    id="confirmPassword" 
-                    v-model="form.confirmPassword"
-                    placeholder="Confirm your password"
-                    required
-                  >
-                </div>
-                
-                <div class="mb-4">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="terms" v-model="form.terms" required>
-                    <label class="form-check-label text-muted" for="terms">
-                      I agree to the 
-                      <a href="#" class="text-decoration-none text-primary">Terms of Service</a> 
-                      and 
-                      <a href="#" class="text-decoration-none text-primary">Privacy Policy</a>
-                    </label>
+                  <div class="invalid-feedback" v-if="formErrors.password">
+                    {{ formErrors.password }}
                   </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-lg w-100 mb-3" :disabled="loading || !form.terms">
-                  <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-                  {{ loading ? 'Creating Account...' : 'Create Account' }}
+                <div class="mb-3">
+                  <label for="password_confirmation" class="form-label fw-medium">Confirm Password</label>
+                  <input 
+                    type="password" 
+                    class="form-control" 
+                    id="password_confirmation" 
+                    v-model="form.password_confirmation"
+                    placeholder="Confirm your password"
+                    :class="{ 'is-invalid': formErrors.password_confirmation }"
+                    required
+                  >
+                  <div class="invalid-feedback" v-if="formErrors.password_confirmation">
+                    {{ formErrors.password_confirmation }}
+                  </div>
+                </div>
+                
+                <div class="form-check mb-4">
+                  <input class="form-check-input" type="checkbox" id="terms" v-model="form.terms" required>
+                  <label class="form-check-label text-muted" for="terms">
+                    I agree to the <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>
+                  </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-lg w-100 mb-3" :disabled="isLoading">
+                  <span v-if="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                  {{ isLoading ? 'Creating account...' : 'Create Account' }}
                 </button>
                 
                 <div class="text-center">
@@ -141,77 +129,121 @@
 </template>
 
 <script>
+import { useAuth } from '@/composables/useAuth'
+import { authAPI } from '@/services/api'
+
 export default {
   name: 'RegisterPage',
   data() {
     return {
       form: {
-        firstName: '',
-        lastName: '',
+        name: '',
         email: '',
-        username: '',
         password: '',
-        confirmPassword: '',
+        password_confirmation: '',
         terms: false
       },
-      loading: false
+      formErrors: {
+        name: '',
+        email: '',
+        password: '',
+        password_confirmation: ''
+      },
+      error: '',
+      isLoading: false
+    }
+  },
+  mounted() {
+    // Check if user is already authenticated
+    const { isAuthenticated } = useAuth()
+    if (isAuthenticated.value) {
+      this.$router.push('/dashboard')
     }
   },
   methods: {
+    validateForm() {
+      let isValid = true
+      this.formErrors = {
+        name: '',
+        email: '',
+        password: '',
+        password_confirmation: ''
+      }
+
+      if (!this.form.name) {
+        this.formErrors.name = 'Name is required'
+        isValid = false
+      } else if (this.form.name.length < 2) {
+        this.formErrors.name = 'Name must be at least 2 characters'
+        isValid = false
+      }
+
+      if (!this.form.email) {
+        this.formErrors.email = 'Email is required'
+        isValid = false
+      } else if (!/\S+@\S+\.\S+/.test(this.form.email)) {
+        this.formErrors.email = 'Please enter a valid email'
+        isValid = false
+      }
+
+      if (!this.form.password) {
+        this.formErrors.password = 'Password is required'
+        isValid = false
+      } else if (this.form.password.length < 6) {
+        this.formErrors.password = 'Password must be at least 6 characters'
+        isValid = false
+      }
+
+      if (!this.form.password_confirmation) {
+        this.formErrors.password_confirmation = 'Please confirm your password'
+        isValid = false
+      } else if (this.form.password !== this.form.password_confirmation) {
+        this.formErrors.password_confirmation = 'Passwords do not match'
+        isValid = false
+      }
+
+      if (!this.form.terms) {
+        this.error = 'Please agree to the terms and conditions'
+        isValid = false
+      }
+
+      return isValid
+    },
     async handleRegister() {
-      // Validate passwords match
-      if (this.form.password !== this.form.confirmPassword) {
-        alert('Passwords do not match!')
-        return
-      }
-      
-      // Validate password length
-      if (this.form.password.length < 8) {
-        alert('Password must be at least 8 characters long!')
-        return
-      }
-      
-      this.loading = true
-      
+      this.error = ''
+      if (!this.validateForm()) return
+
+      this.isLoading = true
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        
-        // Save user registration data
-        const { setAuth } = useAuth()
-        const userStore = useUserStore()
-        
-        // Save auth data
-        setAuth('dummy-token-' + Date.now())
-        
-        // Save user profile data
-        const userData = {
-          firstName: this.form.firstName,
-          lastName: this.form.lastName,
+        const response = await authAPI.register({
+          name: this.form.name,
           email: this.form.email,
-          username: this.form.username,
-          createdAt: new Date().toISOString()
-        }
-        
-        // Update both auth and profile data
-        userStore.setAuthData({
-          username: this.form.username,
-          email: this.form.email
+          password: this.form.password,
+          password_confirmation: this.form.password_confirmation
         })
-        
-        userStore.updateProfile(userData)
-        
-        // For demo purposes, show success and redirect
-        alert('Account created successfully! Redirecting to login...')
-        
-        // Redirect to login page
-        this.$router.push('/auth/login')
-        
-      } catch (error) {
-        console.error('Registration error:', error)
-        alert('Registration failed. Please try again.')
+
+        const { setAuth } = useAuth()
+        setAuth(response.data.token, response.data.user)
+
+        // Redirect to dashboard
+        this.$router.push('/dashboard')
+      } catch (err) {
+        console.error('Registration failed:', err)
+        if (err.response?.data?.errors) {
+          // Handle validation errors
+          const errors = err.response.data.errors
+          Object.keys(errors).forEach(key => {
+            if (this.formErrors.hasOwnProperty(key)) {
+              this.formErrors[key] = errors[key][0]
+            }
+          })
+        } else if (err.response?.data?.message) {
+          this.error = err.response.data.message
+        } else {
+          this.error = 'Registration failed. Please try again.'
+        }
       } finally {
-        this.loading = false
+        this.isLoading = false
       }
     }
   }
@@ -257,15 +289,5 @@ export default {
   background: #6c757d;
   transform: none;
   box-shadow: none;
-}
-
-.form-check-input:checked {
-  background-color: #667eea;
-  border-color: #667eea;
-}
-
-.form-check-input:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 </style> 

@@ -60,9 +60,39 @@
             </div>
           </div>
 
+          <!-- Alerts -->
+          <div v-if="showSuccessAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ successMessage }}
+            <button type="button" class="btn-close" @click="showSuccessAlert = false"></button>
+          </div>
+
+          <div v-if="showErrorAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ errorMessage }}
+            <button type="button" class="btn-close" @click="showErrorAlert = false"></button>
+          </div>
+
           <!-- Posts Table -->
           <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="200">
-            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div v-if="isLoading" class="card-body text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-3 text-muted">Loading posts...</p>
+            </div>
+
+            <div v-else-if="error" class="card-body text-center py-5">
+              <div class="text-danger mb-3">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <h5 class="text-danger">{{ error }}</h5>
+              <button @click="loadPosts" class="btn btn-primary mt-3">Try Again</button>
+            </div>
+
+            <div v-else class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
               <h5 class="mb-0 fw-bold">All Posts ({{ filteredPosts.length }})</h5>
               <div class="d-flex gap-2">
                 <button class="btn btn-sm btn-outline-primary" @click="bulkPublish" :disabled="!selectedPosts.length">
@@ -204,62 +234,78 @@
 </template>
 
 <script>
+import { ref, onMounted } from 'vue'
+import { postsAPI } from '@/services/api'
+import { useAuth } from '@/composables/useAuth'
+
 export default {
   name: 'PostsPage',
+  setup() {
+    const { user } = useAuth()
+    const posts = ref([])
+    const categories = ref([])
+    const isLoading = ref(false)
+    const error = ref(null)
+
+    const loadPosts = async () => {
+      isLoading.value = true
+      error.value = null
+      try {
+        const response = await postsAPI.userPosts({
+          per_page: 50,
+          status: 'all'
+        })
+        
+        if (response.data.success && response.data.data) {
+          posts.value = response.data.data.map(post => ({
+            id: post.id,
+            title: post.title,
+            excerpt: post.body ? post.body.substring(0, 100) + '...' : '',
+            status: post.status,
+            category: post.category || 'Uncategorized',
+            views: post.views_count || 0,
+            likes: post.likes_count || 0,
+            date: post.created_at,
+            featured_image: post.featured_image
+          }))
+        } else {
+          throw new Error('Failed to load posts')
+        }
+      } catch (err) {
+        error.value = err.response?.data?.message || 'Failed to load posts'
+      } finally {
+        isLoading.value = false
+      }
+    }
+
+    const loadCategories = async () => {
+      try {
+        const response = await postsAPI.categories()
+        if (response.data.success && response.data.data) {
+          categories.value = response.data.data
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err)
+      }
+    }
+
+    onMounted(() => {
+      loadPosts()
+      loadCategories()
+    })
+
+    return {
+      user,
+      posts,
+      categories,
+      isLoading,
+      error,
+      loadPosts,
+      loadCategories
+    }
+  },
   data() {
     return {
-      posts: [
-        {
-          id: 1,
-          title: 'Getting Started with Vue.js 3',
-          excerpt: 'A comprehensive guide to modern Vue development',
-          status: 'published',
-          category: 'technology',
-          views: 2300,
-          likes: 89,
-          date: '2024-01-15'
-        },
-        {
-          id: 2,
-          title: 'Bootstrap 5 Best Practices',
-          excerpt: 'Tips and tricks for better Bootstrap development',
-          status: 'draft',
-          category: 'technology',
-          views: 0,
-          likes: 0,
-          date: '2024-01-10'
-        },
-        {
-          id: 3,
-          title: 'Modern CSS Techniques',
-          excerpt: 'Exploring advanced CSS features and animations',
-          status: 'published',
-          category: 'technology',
-          views: 1800,
-          likes: 67,
-          date: '2024-01-08'
-        },
-        {
-          id: 4,
-          title: 'Healthy Meal Prep Guide',
-          excerpt: 'Simple and nutritious meal preparation tips',
-          status: 'published',
-          category: 'lifestyle',
-          views: 3200,
-          likes: 124,
-          date: '2024-01-05'
-        },
-        {
-          id: 5,
-          title: 'Travel Photography Tips',
-          excerpt: 'Capture amazing moments during your travels',
-          status: 'scheduled',
-          category: 'travel',
-          views: 0,
-          likes: 0,
-          date: '2024-01-20'
-        }
-      ],
       filters: {
         search: '',
         status: '',
@@ -267,9 +313,14 @@ export default {
       },
       selectedPosts: [],
       currentPage: 1,
-      postsPerPage: 10
+      postsPerPage: 10,
+      showSuccessAlert: false,
+      successMessage: '',
+      showErrorAlert: false,
+      errorMessage: ''
     }
   },
+
   computed: {
     filteredPosts() {
       return this.posts.filter(post => {
@@ -312,6 +363,50 @@ export default {
     }
   },
   methods: {
+    async loadPosts() {
+      this.isLoading = true
+      this.error = null
+      try {
+        const response = await api.postsAPI.userPosts({
+          per_page: this.postsPerPage,
+          page: this.currentPage
+        })
+        
+        if (response.data.success && response.data.data) {
+          this.posts = response.data.data.map(post => ({
+            id: post.id,
+            title: post.title,
+            excerpt: post.body ? post.body.substring(0, 100) + '...' : '',
+            status: post.status,
+            category: post.category || 'Uncategorized',
+            views: post.views_count || 0,
+            likes: post.likes_count || 0,
+            date: post.created_at,
+            featured_image: post.featured_image
+          }))
+        } else {
+          throw new Error('Failed to load posts')
+        }
+      } catch (error) {
+        this.error = error.response?.data?.message || 'Failed to load posts'
+        this.showErrorAlert = true
+        this.errorMessage = this.error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async loadCategories() {
+      try {
+        const response = await api.postsAPI.categories()
+        if (response.data.success && response.data.data) {
+          this.categories = response.data.data
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error)
+      }
+    },
+    
     getStatusBadgeClass(status) {
       const classes = {
         published: 'badge bg-success',
@@ -365,32 +460,76 @@ export default {
       alert(`Viewing post ${id}`)
     },
     
-    deletePost(id) {
+    async deletePost(id) {
       if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-        this.posts = this.posts.filter(post => post.id !== id)
-        this.selectedPosts = this.selectedPosts.filter(postId => postId !== id)
-        alert('Post deleted successfully!')
+        try {
+          await postsAPI.delete(id)
+          this.posts = this.posts.filter(post => post.id !== id)
+          this.selectedPosts = this.selectedPosts.filter(postId => postId !== id)
+          this.showSuccessMessage('Post deleted successfully!')
+          await this.loadPosts()
+        } catch (error) {
+          this.showErrorMessage(error.response?.data?.message || 'Failed to delete post')
+        }
       }
     },
     
-    bulkPublish() {
+    async bulkPublish() {
       if (confirm(`Are you sure you want to publish ${this.selectedPosts.length} selected posts?`)) {
-        this.posts.forEach(post => {
-          if (this.selectedPosts.includes(post.id)) {
-            post.status = 'published'
-          }
-        })
-        this.selectedPosts = []
-        alert('Selected posts published successfully!')
+        try {
+          await Promise.all(
+            this.selectedPosts.map(async (postId) => {
+              const post = this.posts.find(p => p.id === postId)
+              if (post) {
+                await postsAPI.update(postId, {
+                  ...post,
+                  status: 'published'
+                })
+              }
+            })
+          )
+          
+          this.selectedPosts = []
+          this.showSuccessMessage('Selected posts published successfully!')
+          await this.loadPosts()
+        } catch (error) {
+          this.showErrorMessage(error.response?.data?.message || 'Failed to publish posts')
+        }
       }
     },
     
-    bulkDelete() {
+    async bulkDelete() {
       if (confirm(`Are you sure you want to delete ${this.selectedPosts.length} selected posts? This action cannot be undone.`)) {
-        this.posts = this.posts.filter(post => !this.selectedPosts.includes(post.id))
-        this.selectedPosts = []
-        alert('Selected posts deleted successfully!')
+        try {
+          await Promise.all(
+            this.selectedPosts.map(postId => postsAPI.delete(postId))
+          )
+          
+          this.selectedPosts = []
+          this.showSuccessMessage('Selected posts deleted successfully!')
+          await this.loadPosts()
+        } catch (error) {
+          this.showErrorMessage(error.response?.data?.message || 'Failed to delete posts')
+        }
       }
+    },
+
+    showSuccessMessage(message) {
+      this.successMessage = message
+      this.showSuccessAlert = true
+      setTimeout(() => {
+        this.showSuccessAlert = false
+        this.successMessage = ''
+      }, 3000)
+    },
+
+    showErrorMessage(message) {
+      this.errorMessage = message
+      this.showErrorAlert = true
+      setTimeout(() => {
+        this.showErrorAlert = false
+        this.errorMessage = ''
+      }, 3000)
     },
     
     handleLogout() {

@@ -168,6 +168,8 @@
 </template>
 
 <script>
+import { postsAPI } from '@/services/api'
+
 export default {
   name: 'CreatePostPage',
   data() {
@@ -200,26 +202,65 @@ export default {
       this.loading = true
       
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        const formData = new FormData()
+        formData.append('title', this.form.title)
+        formData.append('body', this.form.content)
+        formData.append('status', this.form.status)
+        formData.append('category', this.form.category)
         
-        // Show success message
-        alert('Post published successfully!')
+        if (this.form.featuredImage) {
+          formData.append('featured_image', this.form.featuredImage)
+        }
         
-        // Redirect to posts list
-        this.$router.push('/dashboard/posts')
+        const response = await postsAPI.create(formData)
+        
+        if (response.data.success) {
+          alert('Post published successfully!')
+          this.$router.push('/dashboard/posts')
+        } else {
+          throw new Error(response.data.message || 'Failed to publish post')
+        }
         
       } catch (error) {
         console.error('Publish error:', error)
-        alert('Failed to publish post. Please try again.')
+        alert(error.response?.data?.message || 'Failed to publish post. Please try again.')
       } finally {
         this.loading = false
       }
     },
     
-    saveDraft() {
-      // Simulate saving draft
-      alert('Draft saved successfully!')
+    async saveDraft() {
+      this.loading = true
+      
+      try {
+        const formData = new FormData()
+        formData.append('title', this.form.title)
+        formData.append('body', this.form.content)
+        formData.append('status', 'draft')
+        formData.append('category', this.form.category)
+        
+        if (this.form.featuredImage) {
+          formData.append('featured_image', this.form.featuredImage)
+        }
+        
+        const response = await this.$api.post('/posts', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        
+        if (response.data.success) {
+          alert('Draft saved successfully!')
+        } else {
+          throw new Error(response.data.message || 'Failed to save draft')
+        }
+        
+      } catch (error) {
+        console.error('Save draft error:', error)
+        alert(error.response?.data?.message || 'Failed to save draft. Please try again.')
+      } finally {
+        this.loading = false
+      }
     },
     
     previewPost() {

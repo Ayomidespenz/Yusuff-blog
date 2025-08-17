@@ -78,8 +78,30 @@
             </div>
           </div>
 
+          <!-- Loading State -->
+          <div v-if="isLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading dashboard data...</p>
+          </div>
+
+          <!-- Error State -->
+          <div v-else-if="error" class="text-center py-5">
+            <div class="text-danger mb-3">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+            </div>
+            <h5 class="text-danger">Failed to load dashboard</h5>
+            <p class="text-muted">{{ error }}</p>
+            <button @click="loadDashboardData" class="btn btn-primary">Try Again</button>
+          </div>
+
           <!-- Stats Cards -->
-          <div class="row g-4 mb-4" data-aos="fade-up">
+          <div v-else class="row g-4 mb-4" data-aos="fade-up">
             <div class="col-xl-3 col-md-6">
               <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
@@ -164,7 +186,7 @@
           </div>
 
           <!-- Recent Posts -->
-          <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="200">
+          <div v-if="!isLoading && !error" class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="200">
             <div class="card-header bg-white border-0">
               <h5 class="mb-0 fw-bold">Recent Posts</h5>
             </div>
@@ -260,50 +282,30 @@
 </template>
 
 <script>
-import { useAuth } from '@/composables/useAuth'
+// import { useAuth } from '@/composables/useAuth'
 import { Modal } from 'bootstrap'
+import { useAuth } from '@/composables/useAuth'
+import { postsAPI } from '@/services/api'
+
 const { user: authUser, clearAuth } = useAuth()
 
 export default {
   name: 'DashboardPage',
   data() {
     return {
+      isLoading: true,
+      error: null,
       stats: {
-        totalPosts: 24,
-        totalViews: 12500,
-        totalLikes: 847,
-        totalComments: 156
+        totalPosts: 0,
+        totalViews: 0,
+        totalLikes: 0,
+        totalComments: 0
       },
-      recentPosts: [
-        {
-          id: 1,
-          title: 'Getting Started with Vue.js 3',
-          description: 'A comprehensive guide to modern Vue development',
-          status: 'published',
-          views: 2300,
-          likes: 89,
-          date: '2 days ago'
-        },
-        {
-          id: 2,
-          title: 'Bootstrap 5 Best Practices',
-          description: 'Tips and tricks for better Bootstrap development',
-          status: 'draft',
-          views: 0,
-          likes: 0,
-          date: '1 week ago'
-        },
-        {
-          id: 3,
-          title: 'Modern CSS Techniques',
-          description: 'Exploring advanced CSS features and animations',
-          status: 'published',
-          views: 1800,
-          likes: 67,
-          date: '1 week ago'
-        }
-      ]
+      recentPosts: []
     }
+  },
+  async mounted() {
+    await this.loadDashboardData()
   },
   computed: {
     authUser() {
@@ -317,6 +319,53 @@ export default {
     }
   },
   methods: {
+    async loadDashboardData() {
+      this.isLoading = true
+      this.error = null
+      
+      try {
+        // Load user stats
+        const statsResponse = await postsAPI.userStats()
+        if (statsResponse.data.success) {
+          this.stats = {
+            totalPosts: statsResponse.data.data.posts || 0,
+            totalViews: statsResponse.data.data.views || 0,
+            totalLikes: statsResponse.data.data.likes || 0,
+            totalComments: statsResponse.data.data.comments || 0
+          }
+        }
+
+        // Load user posts
+        const postsResponse = await postsAPI.userPosts({ 
+          limit: 5,
+          sort: 'created_at',
+          order: 'desc'
+        })
+        
+        if (postsResponse.data.success) {
+          this.recentPosts = postsResponse.data.data.map(post => ({
+            id: post.id,
+            title: post.title,
+            description: post.excerpt || (post.body ? post.body.substring(0, 100) + '...' : ''),
+            status: post.status || 'draft',
+            views: post.views_count || 0,
+            likes: post.likes_count || 0,
+            date: post.created_at ? new Date(post.created_at).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }) : 'N/A'
+          }))
+        } else {
+          this.error = 'Failed to load posts. Please try again later.'
+        }
+      } catch (error) {
+        console.error('Error loading dashboard data:', error)
+        this.error = error.response?.data?.message || 'Failed to load dashboard data. Please try again.'
+      } finally {
+        this.isLoading = false
+      }
+    },
     handleLogout() {
       if (confirm('Are you sure you want to logout?')) {
         clearAuth() // This will automatically redirect to login page
@@ -331,8 +380,9 @@ export default {
     async deletePost(postId) {
       if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
         try {
-          // Here you would make an API call to delete the post
-          // For now, we'll simulate it by removing from local data
+          await postsAPI.delete(postId)
+          
+          // Remove from local data
           this.recentPosts = this.recentPosts.filter(post => post.id !== postId)
           this.stats.totalPosts -= 1
           

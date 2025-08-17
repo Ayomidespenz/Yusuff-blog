@@ -17,22 +17,41 @@
         </div>
         
         <div class="navbar-nav ms-auto">
-          <div class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+          <!-- User Menu -->
+          <div class="nav-item position-relative">
+            <button 
+              @click="isMenuOpen = !isMenuOpen"
+              class="btn btn-link nav-link text-white border-0 d-flex align-items-center gap-2"
+              type="button"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/>
                 <circle cx="12" cy="10" r="3"/>
                 <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>
               </svg>
               {{ userData.name || 'User' }}
-            </a>
-            <ul class="dropdown-menu">
-              <li><router-link class="dropdown-item" to="/dashboard/profile">Profile</router-link></li>
-              <li><router-link class="dropdown-item" to="/dashboard/settings">Settings</router-link></li>
-              <li><router-link class="dropdown-item" to="/">Visit Homepage</router-link></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" @click="handleLogout">Logout</a></li>
-            </ul>
+            </button>
+            
+            <!-- Menu -->
+            <div v-if="isMenuOpen" class="position-absolute end-0 mt-2 py-2 bg-white rounded-3 shadow-sm" style="min-width: 200px; z-index: 1000;">
+              <router-link @click="isMenuOpen = false" to="/dashboard/profile" class="d-block px-4 py-2 text-decoration-none text-dark hover-bg-light">
+                Profile
+              </router-link>
+              <router-link @click="isMenuOpen = false" to="/dashboard/settings" class="d-block px-4 py-2 text-decoration-none text-dark hover-bg-light">
+                Settings
+              </router-link>
+              <router-link @click="isMenuOpen = false" to="/" class="d-block px-4 py-2 text-decoration-none text-dark hover-bg-light">
+                Visit Homepage
+              </router-link>
+              <hr class="my-2">
+              <button 
+                @click="handleLogout"
+                class="d-block w-100 px-4 py-2 text-start text-danger border-0 bg-transparent hover-bg-light" 
+                type="button"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -85,6 +104,7 @@ export default {
 
   data() {
     return {
+      isMenuOpen: false,
       userData: {},
       menuItems: [
         {
@@ -139,12 +159,30 @@ export default {
     }
   },
 
+  mounted() {
+    // Add click outside listener
+    document.addEventListener('click', this.handleClickOutside)
+  },
+
+  unmounted() {
+    // Remove click outside listener
+    document.removeEventListener('click', this.handleClickOutside)
+  },
+
   methods: {
     handleLogout() {
-      if (confirm('Are you sure you want to logout?')) {
-        const { clearAuth } = useAuth()
-        clearAuth()
-        this.$router.push('/auth/login')
+      const { clearAuth } = useAuth()
+      clearAuth()
+      // Clear any stored user data
+      localStorage.removeItem('user')
+      this.isMenuOpen = false
+      this.$router.push('/auth/login')
+    },
+
+    handleClickOutside(event) {
+      const menu = this.$el.querySelector('.nav-item.position-relative')
+      if (menu && !menu.contains(event.target)) {
+        this.isMenuOpen = false
       }
     },
 
@@ -179,6 +217,26 @@ export default {
   color: #667eea;
   background-color: rgba(102, 126, 234, 0.1);
   font-weight: 600;
+}
+
+.dropdown-menu {
+  margin-top: 0.5rem;
+}
+
+.nav-link.dropdown-toggle::after {
+  margin-left: 0.5rem;
+}
+
+.btn-link.nav-link {
+  text-decoration: none;
+}
+
+.dropdown-item:active {
+  background-color: #667eea;
+}
+
+.hover-bg-light:hover {
+  background-color: #f8f9fa;
 }
 
 @media (max-width: 768px) {
