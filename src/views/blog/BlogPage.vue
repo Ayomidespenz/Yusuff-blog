@@ -82,7 +82,25 @@
           <div class="card h-100 border-0 shadow-sm">
             <router-link :to="'/blog/' + post.id" class="text-decoration-none">
               <div class="position-relative">
-                <img :src="post.image" class="card-img-top" :alt="post.title" style="height: 200px; object-fit: cover;">
+                <img 
+                  v-if="post.featured_image"
+                  :src="post.featured_image"
+                  class="card-img-top" 
+                  :alt="post.title" 
+                  style="height: 200px; object-fit: cover;"
+                  @error="handleImageError"
+                >
+                <div 
+                  v-else 
+                  class="bg-light d-flex align-items-center justify-content-center"
+                  style="height: 200px;"
+                >
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-muted">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </div>
                 <span class="position-absolute top-0 end-0 bg-primary text-white px-3 py-2 m-3 rounded-pill">
                   {{ post.category }}
                 </span>
@@ -96,9 +114,14 @@
               
               <!-- Author Info -->
               <div class="d-flex align-items-center mb-3">
-                <img :src="post.author.avatar" class="rounded-circle me-2" width="32" height="32" :alt="post.author.name">
+                <div v-if="post.author.avatar" class="rounded-circle me-2 overflow-hidden" style="width: 32px; height: 32px;">
+                  <img :src="post.author.avatar" class="w-100 h-100" style="object-fit: cover" :alt="post.author.name">
+                </div>
+                <div v-else class="rounded-circle me-2 bg-secondary d-flex align-items-center justify-content-center text-white" style="width: 32px; height: 32px;">
+                  {{ post.author.name ? post.author.name.charAt(0).toUpperCase() : '?' }}
+                </div>
                 <div class="small">
-                  <div class="fw-bold text-dark">{{ post.author.name }}</div>
+                  <div class="fw-bold text-dark">{{ post.author.name || 'Unknown Author' }}</div>
                   <div class="text-muted">{{ post.date }}</div>
                 </div>
               </div>
@@ -247,19 +270,19 @@ export default {
             title: post.title,
             body: post.body,
             excerpt: excerpt,
-            image: post.featured_image && post.featured_image.startsWith('http')
-              ? post.featured_image 
-              : post.featured_image
-                ? `${post.featured_image}`
-                : '/placeholder.jpg',
+            image: post.featured_image
+              ? post.featured_image.startsWith('http')
+                ? post.featured_image
+                : `${process.env.VUE_APP_API_URL}${post.featured_image}`
+              : null,
             category: post.category || 'Uncategorized',
             author: {
-              name: post.user?.name || 'Anonymous',
-              avatar: post.user?.avatar 
+              name: post.user?.name,
+              avatar: post.user?.avatar
                 ? post.user.avatar.startsWith('http')
                   ? post.user.avatar
-                  : `${post.user.avatar}`
-                : '/placeholder-user.jpg'
+                  : `${process.env.VUE_APP_API_URL}${post.user.avatar}`
+                : null
             },
             date: post.created_at 
               ? new Date(post.created_at).toLocaleDateString('en-US', {
@@ -365,7 +388,11 @@ export default {
               date: 'Just now',
               author: {
                 name: user.value.name,
-                avatar: user.value.avatar || '/placeholder-user.jpg'
+                avatar: user.value.avatar
+                  ? user.value.avatar.startsWith('http')
+                    ? user.value.avatar
+                    : `${process.env.VUE_APP_API_URL}${user.value.avatar}`
+                  : null
               }
             })
             
@@ -398,8 +425,12 @@ export default {
               day: 'numeric'
             }),
             author: {
-              name: comment.user?.name || 'Anonymous',
-              avatar: comment.user?.avatar || '/placeholder-user.jpg'
+              name: comment.user?.name,
+              avatar: comment.user?.avatar
+                ? comment.user.avatar.startsWith('http')
+                  ? comment.user.avatar
+                  : `${process.env.VUE_APP_API_URL}${comment.user.avatar}`
+                : null
             }
           }))
         }

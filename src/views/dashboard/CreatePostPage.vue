@@ -191,11 +191,24 @@ export default {
   methods: {
     handleImageUpload(event) {
       const file = event.target.files[0]
-      if (file) {
-        this.form.featuredImage = file
-        // In a real app, you would upload the image to your server
-        console.log('Image selected:', file.name)
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload a valid image file')
+        return
       }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        // Preview the image
+        const previewEl = document.getElementById('imagePreview')
+        if (previewEl) {
+          previewEl.src = e.target.result
+        }
+      }
+      reader.readAsDataURL(file)
+
+      this.form.featuredImage = file
     },
     
     async handleSubmit() {
@@ -243,11 +256,7 @@ export default {
           formData.append('featured_image', this.form.featuredImage)
         }
         
-        const response = await this.$api.post('/posts', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
+        const response = await postsAPI.create(formData)
         
         if (response.data.success) {
           alert('Draft saved successfully!')

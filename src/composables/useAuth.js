@@ -1,12 +1,10 @@
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import router from '@/router' // Import the router instance directly
 
 const isAuthenticated = ref(false)
 const user = ref(null)
 
 export function useAuth() {
-  const router = useRouter()
-  
   const checkAuth = () => {
     const token = localStorage.getItem('authToken')
     const isLoggedIn = localStorage.getItem('isLoggedIn')

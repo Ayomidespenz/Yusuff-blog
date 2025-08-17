@@ -394,39 +394,51 @@ export default {
         }
       }
     },
-    viewAnalytics() {
+    async viewAnalytics() {
       // Get date range for analytics
       const today = new Date()
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate())
       
-      const analytics = {
-        period: {
-          start: lastMonth.toISOString().split('T')[0],
-          end: today.toISOString().split('T')[0]
+      try {
+        // Get real analytics data from API
+        const analyticsResponse = await postsAPI.userStats({
+          start_date: lastMonth.toISOString().split('T')[0],
+          end_date: today.toISOString().split('T')[0]
+        })
+        
+        if (!analyticsResponse.data.success) {
+          throw new Error('Failed to load analytics data')
+        }
+        
+        const analytics = {
+          period: {
+            start: lastMonth.toISOString().split('T')[0],
+            end: today.toISOString().split('T')[0]
+          },
+          views: {
+            total: analyticsResponse.data.data.views || 0,
+            trend: analyticsResponse.data.data.views_trend || '0%',
+            data: analyticsResponse.data.data.views_history || []
+          },
+          likes: {
+            total: analyticsResponse.data.data.likes || 0,
+            trend: analyticsResponse.data.data.likes_trend || '0%',
+            data: analyticsResponse.data.data.likes_history || []
+          },
+          comments: {
+            total: analyticsResponse.data.data.comments || 0,
+            trend: analyticsResponse.data.data.comments_trend || '0%',
+          data: analyticsResponse.data.data.comments_history || []
         },
-        views: {
-          total: this.stats.totalViews,
-          trend: '+12.5%',
-          data: [120, 150, 180, 210, 190, 240, 220] // Last 7 days
-        },
-        likes: {
-          total: this.stats.totalLikes,
-          trend: '+8.3%',
-          data: [45, 52, 49, 58, 51, 54, 60] // Last 7 days
-        },
-        comments: {
-          total: this.stats.totalComments,
-          trend: '+15.2%',
-          data: [12, 15, 18, 14, 20, 17, 22] // Last 7 days
-        },
-        topPosts: this.recentPosts
-          .filter(post => post.status === 'published')
-          .sort((a, b) => b.views - a.views)
-          .slice(0, 5)
+        topPosts: analyticsResponse.data.data.top_posts || []
       }
 
       this.showAnalyticsModal(analytics)
-    },
+    } catch (error) {
+      console.error('Error loading analytics:', error)
+      alert('Failed to load analytics data. Please try again.')
+    }
+  },
     showAnalyticsModal(analytics) {
       // Remove any existing modals
       const existingModal = document.getElementById('analyticsModal')

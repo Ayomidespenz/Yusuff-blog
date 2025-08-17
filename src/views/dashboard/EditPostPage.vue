@@ -1,21 +1,44 @@
 <template>
   <DashboardLayout>
     <template #default>
-      <!-- Header -->
-      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Edit Post</h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-          <router-link to="/dashboard/posts" class="btn btn-outline-secondary me-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
-              <path d="m15 18-6-6 6-6"/>
-            </svg>
-            Back to Posts
-          </router-link>
+      <div class="edit-post-page">
+        <!-- Header -->
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+          <h1 class="h2">Edit Post</h1>
+          <div class="btn-toolbar mb-2 mb-md-0">
+            <router-link to="/dashboard/posts" class="btn btn-outline-secondary me-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              Back to Posts
+            </router-link>
+          </div>
         </div>
       </div>
 
+      <!-- Loading State -->
+      <div v-if="loading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Loading post...</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="text-center py-5">
+        <div class="text-danger mb-3">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <h5 class="text-danger">{{ error }}</h5>
+        <button @click="loadPost" class="btn btn-primary">Try Again</button>
+      </div>
+
       <!-- Edit Post Form -->
-      <div class="card border-0 shadow-sm" data-aos="fade-up">
+      <div v-else class="card border-0 shadow-sm" data-aos="fade-up">
         <div class="card-body p-4">
               <form @submit.prevent="handleSubmit">
                 <div class="row">
@@ -69,11 +92,9 @@
                           <label for="category" class="form-label fw-medium">Category</label>
                           <select class="form-select" id="category" v-model="form.category">
                             <option value="">Select category</option>
-                            <option value="technology">Technology</option>
-                            <option value="lifestyle">Lifestyle</option>
-                            <option value="travel">Travel</option>
-                            <option value="food">Food</option>
-                            <option value="business">Business</option>
+                            <option v-for="category in categories" :key="category" :value="category">
+                              {{ category.charAt(0).toUpperCase() + category.slice(1) }}
+                            </option>
                           </select>
                         </div>
 
@@ -93,13 +114,24 @@
                         <!-- Featured Image -->
                         <div class="mb-3">
                           <label for="featuredImage" class="form-label fw-medium">Featured Image</label>
-                          <div v-if="form.featuredImage" class="mb-2">
+                          <div v-if="form.currentImageUrl" class="position-relative mb-2">
                             <img 
-                              :src="form.featuredImage" 
+                              :src="form.currentImageUrl" 
                               alt="Featured Image" 
-                              class="img-fluid rounded"
-                              style="max-height: 100px;"
+                              class="img-fluid rounded" 
+                              style="max-height: 150px; width: 100%; object-fit: cover;"
+                              @error="$event.target.src = '/placeholder.jpg'"
                             >
+                            <button 
+                              type="button"
+                              class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2"
+                              @click="form.currentImageUrl = null; form.featuredImage = null"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
+                            </button>
                           </div>
                           <input 
                             type="file" 
@@ -195,126 +227,283 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { usePostsStore } from '@/stores/posts'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import { postsAPI } from '@/services/api'
+import emitter from '@/utils/eventBus'
 
 const router = useRouter()
+const route = useRoute()
 const updating = ref(false)
+const loading = ref(true)
+const error = ref(null)
+const categories = ref([])
+
 const postStats = reactive({
-  views: 2300,
-  likes: 89,
-  comments: 23
+  views: 0,
+  likes: 0,
+  comments: 0
 })
 
 const form = reactive({
-  title: 'Getting Started with Vue.js 3',
-  content: 
-`# Getting Started with Vue.js 3
+  title: '',
+  content: '',
+  status: 'draft',
+  category: '',
+  tags: '',
+  excerpt: '',
+  seoTitle: '',
+  seoDescription: '',
+  featuredImage: null,
+  currentImageUrl: null
+})
 
-Vue.js 3 is the latest major version of the progressive JavaScript framework. It brings significant improvements in performance, TypeScript support, and developer experience.
-
-## Key Features
-
-- **Composition API**: A new way to organize component logic
-- **Better TypeScript Support**: Built with TypeScript from the ground up
-- **Improved Performance**: Faster rendering and smaller bundle sizes
-- **Tree Shaking**: Better tree shaking for smaller production builds
-
-## Installation
-
-\`\`\`javascript
-// Example Vue 3 Component
-import { ref } from 'vue'
-
-export default {
-  setup() {
-    const message = ref('Hello Vue 3!')
-    
-    const reverseMessage = () => {
-      message.value = message.value.split('').reverse().join('')
+// Load post data
+const loadPost = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    const response = await postsAPI.getById(route.params.id)
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to load post')
     }
+
+    const post = response.data.data
+    // Reset form to prevent any stale data
+    Object.keys(form).forEach(key => {
+      form[key] = null
+    })
     
-    return {
-      message,
-      reverseMessage
-    }
+    // Update form with post data
+    form.title = post.title || ''
+    form.content = post.body || ''
+    form.status = post.status || 'draft'
+    form.category = post.category || ''
+    form.tags = Array.isArray(post.tags) ? post.tags.join(', ') : ''
+    form.excerpt = post.excerpt || ''
+    form.seoTitle = post.seo_title || ''
+    form.seoDescription = post.seo_description || ''
+    form.currentImageUrl = post.featured_image
+      ? post.featured_image.startsWith('http')
+        ? post.featured_image
+        : `${process.env.VUE_APP_API_URL}${post.featured_image}`
+      : null
+
+    // Update stats
+    postStats.views = post.views_count || 0
+    postStats.likes = post.likes_count || 0
+    postStats.comments = post.comments_count || 0
+  } catch (err) {
+    console.error('Error loading post:', err)
+    error.value = err.message || 'Failed to load post'
+  } finally {
+    loading.value = false
   }
 }
-\`\`\`
 
-## Next Steps
+const loadCategories = async () => {
+  try {
+    const response = await postsAPI.categories()
+    if (response.data.success && response.data.data) {
+      categories.value = response.data.data
+    }
+  } catch (error) {
+    console.error('Error loading categories:', error)
+  }
+}
 
-This is just the beginning of your Vue.js 3 journey. Explore the official documentation to learn more about:
-
-- Components and Props
-- Reactivity and State Management
-- Routing with Vue Router
-- State Management with Pinia
-- Testing with Vue Test Utils
-
-Happy coding! 🚀`,
-  status: 'published',
-  category: 'technology',
-  tags: 'vue, javascript, frontend, framework',
-  excerpt: 'A comprehensive guide to modern Vue development with the latest features and best practices.',
-  seoTitle: 'Vue.js 3 Tutorial: Complete Guide for Beginners',
-  seoDescription: 'Learn Vue.js 3 from scratch with this comprehensive tutorial. Master the Composition API, TypeScript support, and modern development practices.',
-  featuredImage: '/nextjs-development.png'
+onMounted(async () => {
+  await Promise.all([
+    loadPost(),
+    loadCategories()
+  ])
 })
 
 // Methods
 const handleImageUpload = (event) => {
   const file = event.target.files[0]
-  if (file) {
-    // In a real app, you would upload the image to your server
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      form.featuredImage = e.target.result
-    }
-    reader.readAsDataURL(file)
-    console.log('Image selected:', file.name)
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload a valid image file')
+    return
   }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    // Preview the image
+    form.currentImageUrl = e.target.result
+  }
+  reader.readAsDataURL(file)
+
+  form.featuredImage = file
 }
 
 const handleSubmit = async () => {
+  if (updating.value) return
   updating.value = true
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Create new FormData instance
+    const formData = new FormData()
+
+    // Always append all fields - Laravel will handle partial updates
+    formData.append('title', form.title?.trim() || '')
+    formData.append('body', form.content?.trim() || '')
+    formData.append('status', form.status || 'draft')
+    formData.append('category', form.category?.trim() || '')
+    formData.append('excerpt', form.excerpt?.trim() || '')
+    formData.append('seo_title', form.seoTitle?.trim() || '')
+    formData.append('seo_description', form.seoDescription?.trim() || '')
+
+    // Handle tags
+    if (form.tags?.trim()) {
+      const tags = form.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+      formData.append('tags', JSON.stringify(tags))
+    }
     
-    // Show success message
-    alert('Post updated successfully!')
-    
-    // Redirect to posts list
-    router.push('/dashboard/posts')
-    
+    // Handle featured image if a new one is selected
+    if (form.featuredImage instanceof File) {
+      const maxSize = 2 * 1024 * 1024 // 2MB (2048KB)
+      if (form.featuredImage.size > maxSize) {
+        throw new Error('Featured image must be less than 2MB')
+      }
+      if (!form.featuredImage.type.startsWith('image/')) {
+        throw new Error('Featured image must be an image file')
+      }
+      formData.append('featured_image', form.featuredImage)
+    }
+
+    try {
+      console.log('Form data contents:')
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value)
+      }
+
+      console.log('Submitting update to:', `/posts/${route.params.id}`)
+      const response = await postsAPI.update(route.params.id, formData)
+      console.log('Full API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data
+      })
+      
+      // Handle Laravel validation errors
+      if (response.status === 422) {
+        const errors = response.data.errors
+        if (errors) {
+          console.error('Validation errors:', errors)
+          const messages = Object.values(errors).flat().join('\n')
+          throw new Error(messages)
+        }
+      }
+
+      // Handle other error responses
+      if (!response.data?.success) {
+        console.error('API error:', response.data)
+        throw new Error(response.data?.message || 'Failed to update post')
+      }
+
+      // Update the form with the returned data
+      const updatedPost = response.data.data
+      console.log('Successfully received updated post:', updatedPost)
+      
+      form.title = updatedPost.title
+      form.content = updatedPost.body
+      form.status = updatedPost.status
+      form.category = updatedPost.category || ''
+      form.currentImageUrl = updatedPost.featured_image || null
+      form.featuredImage = null
+
+      // Emit an event using the event bus to refresh the posts list
+      console.log('Emitting post-updated event')
+      emitter.emit('post-updated', { 
+        postId: route.params.id, 
+        post: updatedPost 
+      })
+      
+      // Emit the update event with the updated post data
+      console.log('Emitting post-updated event with:', updatedPost)
+      emitter.emit('post-updated', updatedPost)
+
+      // Show success message
+      alert('Post updated successfully!')
+
+      alert('Post updated successfully!')
+
+      // First navigate back to posts list
+      await router.replace('/dashboard/posts')
+      
+      // Then force a refresh of the posts list by calling the API again
+      try {
+        const postsResponse = await postsAPI.userPosts()
+        if (postsResponse.data.success) {
+          console.log('Successfully refreshed posts list')
+        }
+      } catch (err) {
+        console.error('Error refreshing posts:', err)
+      }
+      await router.push('/dashboard/posts')
+    } catch (error) {
+      if (error.response?.data?.errors) {
+        const messages = Object.values(error.response.data.errors).flat().join('\n')
+        throw new Error(messages)
+      }
+      throw error
+    }
   } catch (error) {
     console.error('Update error:', error)
-    alert('Failed to update post. Please try again.')
+    alert(error.message || 'Failed to update post. Please try again.')
   } finally {
     updating.value = false
   }
 }
 
-const saveDraft = () => {
+const saveDraft = async () => {
   form.status = 'draft'
-  // Simulate saving draft
-  alert('Draft saved successfully!')
+  await handleSubmit()
 }
 
 const previewPost = () => {
-  // In a real app, this would open a preview modal or new tab
-  alert('Preview functionality coming soon!')
+  const previewWindow = window.open('', '_blank')
+  previewWindow.document.write(`
+    <html>
+      <head>
+        <title>${form.title}</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+      </head>
+      <body class="bg-light p-5">
+        <div class="container">
+          <div class="card shadow">
+            <div class="card-body">
+              ${form.content}
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `)
 }
 
-const deletePost = () => {
-  if (confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
-    if (confirm('This is your final warning. Are you absolutely sure?')) {
-      alert('Post deleted successfully!')
-      router.push('/dashboard/posts')
+const deletePost = async () => {
+  if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+    return
+  }
+
+  try {
+    const response = await postsAPI.delete(route.params.id)
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to delete post')
     }
+    
+    alert('Post deleted successfully!')
+    router.push('/dashboard/posts')
+  } catch (error) {
+    console.error('Delete error:', error)
+    alert(error.response?.data?.message || 'Failed to delete post. Please try again.')
   }
 }
 

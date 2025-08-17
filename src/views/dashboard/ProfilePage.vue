@@ -9,16 +9,16 @@ const router = useRouter();
 
 // Profile data
 const profile = reactive({
-  name: "John Doe",
-  email: "john@example.com",
-  avatar: "/default-avatar.png",
-  bio: "Web developer with a love for Vue.js",
-  location: "New York, USA",
-  website: "https://example.com",
-  socialLinks: {
-    twitter: "https://twitter.com/username",
-    github: "https://github.com/username",
-    linkedin: "https://linkedin.com/in/username"
+  name: userStore.user?.name || '',
+  email: userStore.user?.email || '',
+  avatar: userStore.user?.avatar || '/placeholder-user.jpg',
+  bio: userStore.user?.bio || '',
+  location: userStore.user?.location || '',
+  website: userStore.user?.website || '',
+  socialLinks: userStore.user?.social_links || {
+    twitter: '',
+    github: '',
+    linkedin: ''
   }
 });
 
@@ -37,7 +37,7 @@ const updatingSocialLinks = ref(false);
 // --- Methods ---
 
 // Handle avatar upload
-const handleAvatarUpload = (event) => {
+const handleAvatarUpload = async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
@@ -46,12 +46,22 @@ const handleAvatarUpload = (event) => {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    profile.avatar = e.target.result;
-  };
-  reader.readAsDataURL(file);
-  console.log("Avatar selected:", file.name);
+  try {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await userStore.updateAvatar(formData);
+    
+    if (response.success) {
+      profile.avatar = response.data.avatar;
+      alert("Avatar updated successfully!");
+    } else {
+      throw new Error("Failed to update avatar");
+    }
+  } catch (err) {
+    console.error('Error uploading avatar:', err);
+    alert(err.response?.data?.message || "Failed to update avatar");
+  }
 };
 
 // Update profile
@@ -63,15 +73,46 @@ const updateProfile = async () => {
 
   updatingProfile.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // simulate API
-    alert("Profile updated successfully!");
+    // Create a regular data object (not FormData since we don't have files here)
+    const profileData = {
+      name: profile.name.trim(),
+      email: profile.email.trim(),
+      bio: profile.bio?.trim() || '',
+      location: profile.location?.trim() || '',
+      website: profile.website?.trim() || '',
+      social_links: {
+        twitter: profile.socialLinks.twitter?.trim() || '',
+        github: profile.socialLinks.github?.trim() || '',
+        linkedin: profile.socialLinks.linkedin?.trim() || ''
+      }
+    }
+
+    const result = await userStore.updateProfile(profileData)
+    
+    if (result && result.success) {
+      const userData = result.data
+      // Update local profile with returned data
+      Object.assign(profile, {
+        name: userData.name || '',
+        email: userData.email || '',
+        bio: userData.bio || '',
+        location: userData.location || '',
+        website: userData.website || '',
+        socialLinks: userData.social_links || {
+          twitter: '',
+          github: '',
+          linkedin: ''
+        }
+      })
+      alert("Profile updated successfully!")
+    }
   } catch (err) {
-    console.error(err);
-    alert("Failed to update profile.");
+    console.error('Profile update error:', err)
+    alert(err.message || "Failed to update profile.")
   } finally {
-    updatingProfile.value = false;
+    updatingProfile.value = false
   }
-};
+}
 
 // Change password
 const changePassword = async () => {
@@ -83,15 +124,27 @@ const changePassword = async () => {
     alert("New passwords do not match.");
     return;
   }
+  if (password.new.length < 8) {
+    alert("New password must be at least 8 characters long.");
+    return;
+  }
 
   changingPassword.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // simulate API
-    alert("Password changed successfully!");
-    password.current = password.new = password.confirm = "";
+    const result = await userStore.changePassword({
+      current_password: password.current,
+      new_password: password.new,
+      new_password_confirmation: password.confirm
+    });
+    
+    if (result && result.success) {
+      alert("Password changed successfully!");
+      // Clear password fields
+      password.current = password.new = password.confirm = "";
+    }
   } catch (err) {
-    console.error(err);
-    alert("Failed to change password.");
+    console.error('Password change error:', err);
+    alert(err.message || "Failed to change password.");
   } finally {
     changingPassword.value = false;
   }
@@ -101,11 +154,27 @@ const changePassword = async () => {
 const updateSocialLinks = async () => {
   updatingSocialLinks.value = true;
   try {
-    await new Promise(resolve => setTimeout(resolve, 1500)); // simulate API
-    alert("Social links updated successfully!");
+    const result = await userStore.updateProfile({
+      ...profile,
+      social_links: {
+        twitter: profile.socialLinks.twitter?.trim() || '',
+        github: profile.socialLinks.github?.trim() || '',
+        linkedin: profile.socialLinks.linkedin?.trim() || ''
+      }
+    });
+    
+    if (result && result.success) {
+      const userData = result.data;
+      profile.socialLinks = userData.social_links || {
+        twitter: '',
+        github: '',
+        linkedin: ''
+      };
+      alert("Social links updated successfully!");
+    }
   } catch (err) {
-    console.error(err);
-    alert("Failed to update social links.");
+    console.error('Social links update error:', err);
+    alert(err.message || "Failed to update social links.");
   } finally {
     updatingSocialLinks.value = false;
   }
