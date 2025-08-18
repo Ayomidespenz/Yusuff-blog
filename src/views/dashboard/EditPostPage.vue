@@ -1,45 +1,47 @@
 <template>
-  <DashboardLayout>
-    <template #default>
-      <div class="edit-post-page">
-        <!-- Header -->
-        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-          <h1 class="h2">Edit Post</h1>
-          <div class="btn-toolbar mb-2 mb-md-0">
-            <router-link to="/dashboard/posts" class="btn btn-outline-secondary me-2">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-              Back to Posts
-            </router-link>
+  
+    <div class="edit-post-page">
+      <!-- Header -->
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Edit Post</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <router-link to="/dashboard/posts" class="btn btn-outline-secondary me-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+            Back to Posts
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Content Area -->
+      
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- Loading State -->
+        <div v-if="loading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
           </div>
+          <p class="mt-3 text-muted">Loading post...</p>
         </div>
-      </div>
 
-      <!-- Loading State -->
-      <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
+        <!-- Error State -->
+        <div v-else-if="error" class="text-center py-5">
+          <div class="text-danger mb-3">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <h5 class="text-danger">{{ error }}</h5>
+          <button @click="loadPost" class="btn btn-primary">Try Again</button>
         </div>
-        <p class="mt-3 text-muted">Loading post...</p>
-      </div>
 
-      <!-- Error State -->
-      <div v-else-if="error" class="text-center py-5">
-        <div class="text-danger mb-3">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-        </div>
-        <h5 class="text-danger">{{ error }}</h5>
-        <button @click="loadPost" class="btn btn-primary">Try Again</button>
-      </div>
-
-      <!-- Edit Post Form -->
-      <div v-else class="card border-0 shadow-sm" data-aos="fade-up">
-        <div class="card-body p-4">
+        <!-- Edit Post Form -->
+        <div v-else class="card border-0 shadow-sm" data-aos="fade-up">
+          <div class="card-body p-4">
               <form @submit.prevent="handleSubmit">
                 <div class="row">
                   <div class="col-md-8">
@@ -222,8 +224,10 @@
               </form>
             </div>
           </div>
-    </template>
-  </DashboardLayout>
+        </div>
+      </div>
+    <!-- </div> -->
+  
 </template>
 
 <script setup>
@@ -323,22 +327,35 @@ onMounted(async () => {
 
 // Methods
 const handleImageUpload = (event) => {
-  const file = event.target.files[0]
+  const file = event.target.files?.[0]
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
     alert('Please upload a valid image file')
+    event.target.value = '' // Clear the input
+    return
+  }
+
+  // Check file size (2MB limit)
+  const maxSize = 2 * 1024 * 1024 // 2MB
+  if (file.size > maxSize) {
+    alert('Image size must be less than 2MB')
+    event.target.value = '' // Clear the input
     return
   }
 
   const reader = new FileReader()
   reader.onload = (e) => {
-    // Preview the image
-    form.currentImageUrl = e.target.result
+    form.currentImageUrl = e.target.result // For preview
+    form.featuredImage = file // Store the file for upload
+  }
+  reader.onerror = () => {
+    alert('Error reading file')
+    form.currentImageUrl = null
+    form.featuredImage = null
+    event.target.value = '' // Clear the input
   }
   reader.readAsDataURL(file)
-
-  form.featuredImage = file
 }
 
 const handleSubmit = async () => {
@@ -377,25 +394,12 @@ const handleSubmit = async () => {
     }
 
     try {
-      console.log('Form data contents:')
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}:`, value)
-      }
-
-      console.log('Submitting update to:', `/posts/${route.params.id}`)
       const response = await postsAPI.update(route.params.id, formData)
-      console.log('Full API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data: response.data
-      })
       
       // Handle Laravel validation errors
       if (response.status === 422) {
         const errors = response.data.errors
         if (errors) {
-          console.error('Validation errors:', errors)
           const messages = Object.values(errors).flat().join('\n')
           throw new Error(messages)
         }
@@ -403,50 +407,48 @@ const handleSubmit = async () => {
 
       // Handle other error responses
       if (!response.data?.success) {
-        console.error('API error:', response.data)
         throw new Error(response.data?.message || 'Failed to update post')
       }
 
       // Update the form with the returned data
       const updatedPost = response.data.data
-      console.log('Successfully received updated post:', updatedPost)
       
-      form.title = updatedPost.title
-      form.content = updatedPost.body
-      form.status = updatedPost.status
+      // Update form state with returned data
+      form.title = updatedPost.title || ''
+      form.content = updatedPost.body || ''
+      form.status = updatedPost.status || 'draft'
       form.category = updatedPost.category || ''
-      form.currentImageUrl = updatedPost.featured_image || null
+      form.excerpt = updatedPost.excerpt || ''
+      form.seoTitle = updatedPost.seo_title || ''
+      form.seoDescription = updatedPost.seo_description || ''
+      form.tags = Array.isArray(updatedPost.tags) ? updatedPost.tags.join(', ') : ''
+      
+      // Handle featured image URL
+      if (updatedPost.featured_image) {
+        form.currentImageUrl = updatedPost.featured_image.startsWith('http') 
+          ? updatedPost.featured_image 
+          : `${process.env.VUE_APP_API_URL}${updatedPost.featured_image}`
+      } else {
+        form.currentImageUrl = null
+      }
       form.featuredImage = null
 
-      // Emit an event using the event bus to refresh the posts list
-      console.log('Emitting post-updated event')
+      // Update stats
+      postStats.views = updatedPost.views_count || 0
+      postStats.likes = updatedPost.likes_count || 0
+      postStats.comments = updatedPost.comments_count || 0
+
+      // Emit update event for the posts list
       emitter.emit('post-updated', { 
         postId: route.params.id, 
         post: updatedPost 
       })
-      
-      // Emit the update event with the updated post data
-      console.log('Emitting post-updated event with:', updatedPost)
-      emitter.emit('post-updated', updatedPost)
 
       // Show success message
       alert('Post updated successfully!')
-
-      alert('Post updated successfully!')
-
-      // First navigate back to posts list
-      await router.replace('/dashboard/posts')
       
-      // Then force a refresh of the posts list by calling the API again
-      try {
-        const postsResponse = await postsAPI.userPosts()
-        if (postsResponse.data.success) {
-          console.log('Successfully refreshed posts list')
-        }
-      } catch (err) {
-        console.error('Error refreshing posts:', err)
-      }
-      await router.push('/dashboard/posts')
+      // Navigate back to posts list
+      router.push('/dashboard/posts')
     } catch (error) {
       if (error.response?.data?.errors) {
         const messages = Object.values(error.response.data.errors).flat().join('\n')
