@@ -84,11 +84,11 @@
               <div class="position-relative">
                 <img 
                   v-if="post.featured_image"
-                  :src="post.featured_image"
+                  :src="getImageUrl(post.featured_image)"
                   class="card-img-top" 
                   :alt="post.title" 
                   style="height: 200px; object-fit: cover;"
-                  @error="handleImageError"
+                  @error="$event.target.src = '/placeholder.jpg'"
                 >
                 <div 
                   v-else 
@@ -231,6 +231,12 @@ export default {
     ])
   },
   methods: {
+    getImageUrl(imageUrl) {
+      if (!imageUrl) return '/placeholder.jpg'
+      if (imageUrl.startsWith('http')) return imageUrl
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      return `${apiUrl}/storage/${imageUrl}`
+    },
     goToHome() {
       this.$router.push('/')
     },

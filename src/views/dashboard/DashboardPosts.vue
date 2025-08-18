@@ -52,7 +52,7 @@
             <div class="card h-100 border-0 shadow-sm" data-aos="fade-up">
               <!-- Featured Image -->
               <img 
-                :src="post.featured_image || '/placeholder.jpg'" 
+                :src="getImageUrl(post.featured_image)" 
                 class="card-img-top" 
                 alt="Featured Image"
                 style="height: 200px; object-fit: cover;"
@@ -112,6 +112,13 @@ const router = useRouter()
 const posts = ref([])
 const loading = ref(true)
 const error = ref(null)
+
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return '/placeholder.jpg'
+  return imageUrl.startsWith('http') 
+    ? imageUrl 
+    : `${process.env.VUE_APP_API_URL}/storage/${imageUrl}`
+}
 
 const loadPosts = async () => {
   loading.value = true

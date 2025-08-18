@@ -427,7 +427,7 @@ const handleSubmit = async () => {
       if (updatedPost.featured_image) {
         form.currentImageUrl = updatedPost.featured_image.startsWith('http') 
           ? updatedPost.featured_image 
-          : `${process.env.VUE_APP_API_URL}${updatedPost.featured_image}`
+          : `${process.env.VUE_APP_API_URL}/storage/${updatedPost.featured_image}`
       } else {
         form.currentImageUrl = null
       }
