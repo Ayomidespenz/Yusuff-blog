@@ -1,6 +1,6 @@
 <template>
   <div class="min-vh-100 bg-light">
-               <img :src="getImageUrl(post.author?.avatar)" class="rounded-circle me-3" width="48" height="48" :alt="post.author?.name" @error="$event.target.src = '/placeholder-user.jpg'">  <!-- Navigation -->
+    <!-- Navigation -->
     <header class="bg-white shadow-sm py-3 mb-4">
       <div class="container">
         <nav class="navbar navbar-expand-lg navbar-light px-0">
@@ -68,10 +68,29 @@
             
             <!-- Author Info -->
             <div class="d-flex align-items-center mb-4" v-if="post.author">
-              <img :src="getImageUrl(post.author?.avatar)" class="rounded-circle me-3" width="48" height="48" :alt="post.author?.name" @error="$event.target.src = '/placeholder-user.jpg'">
+              <img 
+                :src="getImageUrl(post.author.avatar)" 
+                class="rounded-circle me-3" 
+                width="48" 
+                height="48" 
+                :alt="post.author.name"
+                @error="$event.target.src = '/placeholder-user.jpg'"
+              >
               <div>
-                <h6 class="mb-0">{{ post.author?.name || 'Anonymous' }}</h6>
-                <p class="text-muted small mb-0">{{ post.author?.bio || '' }}</p>
+                <h6 class="mb-0">{{ post.author.name }}</h6>
+                <p class="text-muted small mb-0">{{ post.author.bio || '' }}</p>
+              </div>
+            </div>
+            <div class="d-flex align-items-center mb-4" v-else>
+              <img 
+                src="/placeholder-user.jpg" 
+                class="rounded-circle me-3" 
+                width="48" 
+                height="48" 
+                alt="Anonymous"
+              >
+              <div>
+                <h6 class="mb-0">Anonymous</h6>
               </div>
             </div>
             
@@ -197,7 +216,11 @@ export default {
     },
     getImageUrl(imageUrl) {
       if (!imageUrl) return '/placeholder.jpg'
-      if (imageUrl.startsWith('http')) return imageUrl
+      if (imageUrl.startsWith('http') || imageUrl.startsWith('data:')) return imageUrl
+      if (imageUrl.startsWith('/')) {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+        return `${apiUrl}${imageUrl}`
+      }
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
       return `${apiUrl}/storage/${imageUrl}`
     },
@@ -211,17 +234,19 @@ export default {
         const response = await postsAPI.getById(this.$route.params.id)
         console.log('API Response:', response.data)
 
-        if (response.data?.success && response.data?.data) {
-          this.post = {
-            ...response.data.data,
-            author: response.data.data.author || {
-              name: 'Anonymous',
-              avatar: null,
-              bio: ''
-            }
-          }
-        } else {
+        if (!response.data?.success || !response.data?.data) {
           throw new Error('Invalid post data received')
+        }
+
+        const postData = response.data.data
+        this.post = {
+          ...postData,
+          author: postData.user || postData.author || null, // Try both user and author fields
+          featured_image: postData.featured_image || postData.image || null,
+          body: postData.body || postData.content || '',
+          views_count: postData.views_count || 0,
+          likes_count: postData.likes_count || 0,
+          comments: postData.comments || []
         }
         
         // Load comments if not included in post data
@@ -239,7 +264,15 @@ export default {
       try {
         const response = await commentsAPI.getByPost(this.post.id)
         if (response.data?.success) {
-          this.post.comments = response.data.data
+          this.post.comments = response.data.data.map(comment => ({
+            id: comment.id,
+            content: comment.content,
+            date: this.formatDate(comment.created_at),
+            author: {
+              name: comment.user?.name || 'Anonymous',
+              avatar: comment.user?.avatar
+            }
+          }))
         }
       } catch (error) {
         console.error('Error loading comments:', error)

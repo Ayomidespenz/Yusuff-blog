@@ -325,6 +325,7 @@ import CardContent from '@/components/ui/CardContent.vue'
 
 export default {
   name: 'HomePage',
+
   components: {
     Edit3Icon,
     ArrowRightIcon,
@@ -340,11 +341,23 @@ export default {
     Card,
     CardContent
   },
-  setup() {
-    const { user: authUser } = useAuth()
+
+  data() {
     return {
-      authUser
+      auth: null // we'll store useAuth() here
     }
+  },
+
+  computed: {
+    // expose auth.user as a computed property so template can use it
+    authUser() {
+      return this.auth ? this.auth.user : null
+    }
+  },
+
+  created() {
+    // initialize composable in lifecycle hook
+    this.auth = useAuth()
   }
 }
 </script>

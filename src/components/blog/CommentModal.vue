@@ -19,12 +19,12 @@
                   class="rounded-circle me-2" 
                   width="40" 
                   height="40" 
-                  :alt="comment.author?.name || 'Anonymous'"
+                  :alt="comment.author?.name"
                 >
                 <div class="flex-grow-1">
                   <div class="bg-light rounded-3 p-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                      <h6 class="mb-0">{{ comment.author?.name || 'Anonymous' }}</h6>
+                      <h6 class="mb-0">{{ comment.author?.name }}</h6>
                       <small class="text-muted">{{ comment.date || 'Just now' }}</small>
                     </div>
                     <p class="mb-0">{{ comment.content }}</p>
