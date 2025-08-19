@@ -23,7 +23,8 @@
     "mitt": "^3.0.1",
     "pinia": "^2.3.1",
     "vue": "^3.4.0",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "vue-toastification": "^2.0.0-rc.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
