@@ -72,14 +72,14 @@
             <div class="card h-100 border-0 shadow-sm" data-aos="fade-up">
               <!-- Featured Image -->
               <img
-                :src="getImageUrl(post.featured_image)"
+                :src="post.featured_image"
                 class="card-img-top"
                 alt="Featured Image"
                 style="height: 200px; object-fit: cover;"
                 @error="$event.target.src = '/placeholder.jpg'"
               />
               <div class="card-body">
-                <h5 class="card-title">{{ post.title }}</h5>
+                <h5 class="card-title">{{ post.title }}sddddddd</h5>
                 <p class="card-text text-muted">
                   {{
                     post.excerpt ||

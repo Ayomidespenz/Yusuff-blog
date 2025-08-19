@@ -83,24 +83,12 @@
             <router-link :to="'/blog/' + post.id" class="text-decoration-none">
               <div class="position-relative">
                 <img 
-                  v-if="post.featured_image"
-                  :src="getImageUrl(post.featured_image)"
+                  :src="post.featured_image"
                   class="card-img-top" 
                   :alt="post.title" 
                   style="height: 200px; object-fit: cover;"
                   @error="$event.target.src = '/placeholder.jpg'"
                 >
-                <div 
-                  v-else 
-                  class="bg-light d-flex align-items-center justify-content-center"
-                  style="height: 200px;"
-                >
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-muted">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                </div>
                 <span class="position-absolute top-0 end-0 bg-primary text-white px-3 py-2 m-3 rounded-pill">
                   {{ post.category }}
                 </span>
@@ -276,11 +264,7 @@ export default {
             title: post.title,
             body: post.body,
             excerpt: excerpt,
-            image: post.featured_image
-              ? post.featured_image.startsWith('http')
-                ? post.featured_image
-                : `${process.env.VUE_APP_API_URL}${post.featured_image}`
-              : null,
+            featured_image: post.featured_image,
             category: post.category || 'Uncategorized',
             author: {
               name: post.user?.name,
