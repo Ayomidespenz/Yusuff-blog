@@ -367,13 +367,11 @@ const handleSubmit = async () => {
     const formData = new FormData()
 
     // Always append all fields - Laravel will handle partial updates
-    formData.append('title', form.title?.trim() || '')
-    formData.append('body', form.content?.trim() || '')
-    formData.append('status', form.status || 'draft')
-    formData.append('category', form.category?.trim() || '')
-    formData.append('excerpt', form.excerpt?.trim() || '')
-    formData.append('seo_title', form.seoTitle?.trim() || '')
-    formData.append('seo_description', form.seoDescription?.trim() || '')
+    if (form.title) formData.append('title', form.title.trim())
+    if (form.content) formData.append('body', form.content.trim())
+    if (form.status) formData.append('status', form.status)
+    if (form.category) formData.append('category', form.category.trim())
+
 
     // Handle tags
     if (form.tags?.trim()) {

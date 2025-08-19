@@ -62,9 +62,12 @@ export const postsAPI = {
   create: (data) => api.post('/posts', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  update: (id, data) => api.put(`/posts/${id}`, data, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  update: (id, data) => {
+    return api.post(`/posts/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      params: { _method: 'PUT' }  // Use POST with _method=PUT for proper FormData handling
+    });
+  },
   delete: (id) => api.delete(`/posts/${id}`),
   search: (params = {}) => api.get('/posts/search', { params }),
   categories: () => api.get('/categories'),
