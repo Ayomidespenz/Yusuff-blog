@@ -103,9 +103,14 @@
 <script>
 import { useAuth } from '@/composables/useAuth'
 import { authAPI } from '@/services/api'
+import { useToast } from 'vue-toastification'
 
 export default {
   name: 'LoginPage',
+  setup(){
+    const toast= useToast();
+    return {toast}
+  },
   data() {
     return {
       form: {
@@ -155,36 +160,96 @@ export default {
       return isValid
     },
     async handleLogin() {
-      this.error = ''
-      if (!this.validateForm()) return
+  this.error = ''
+  if (!this.validateForm()) return
 
-      this.isLoading = true
-      try {
-        const response = await authAPI.login({
-          email: this.form.email,
-          password: this.form.password
-        })
+  this.isLoading = true
+  try {
+    const response = await authAPI.login({
+      email: this.form.email,
+      password: this.form.password
+    })
 
-        const { setAuth } = useAuth()
-        setAuth(response.data.token, response.data.user)
+    const { setAuth } = useAuth()
+    setAuth(response.data.token, response.data.user)
 
-        if (this.form.remember) {
-          localStorage.setItem('rememberMe', 'true')
-        }
-
-        // Redirect to dashboard
-        this.$router.push('/dashboard')
-      } catch (err) {
-        console.error('Login failed:', err)
-        if (err.response?.data?.message) {
-          this.error = err.response.data.message
-        } else {
-          this.error = 'Invalid email or password'
-        }
-      } finally {
-        this.isLoading = false
-      }
+    if (this.form.remember) {
+      localStorage.setItem('rememberMe', 'true')
     }
+
+    // ✅ Check response.data.success
+    if (response.data.success) {
+      this.toast.success("Login successful!!")
+      this.$router.push('/dashboard')
+    } else {
+      this.error = response.data.message || 'Login failed'
+      if (response.data.error) {
+        this.error = response.data.error
+      }
+      this.toast.error(this.error)
+    }
+
+  } catch (err) {
+    console.error('Login failed:', err)
+
+    if (err.response?.status === 422) {
+      // Laravel validation errors
+      const errors = err.response.data.errors || {}
+      this.error = Object.values(errors)[0]?.[0] || 'Invalid login details'
+      this.toast.error(this.error)
+    } else if (err.response?.data?.message) {
+      this.error = err.response.data.message
+      this.toast.error(this.error)
+    } else {
+      this.error = 'Invalid email or password'
+      this.toast.error(this.error)
+    }
+  } finally {
+    this.isLoading = false
+  }
+}
+
+    // async handleLogin() {
+    //   this.error = ''
+    //   if (!this.validateForm()) return
+
+    //   this.isLoading = true
+    //   try {
+    //     const response = await authAPI.login({
+    //       email: this.form.email,
+    //       password: this.form.password
+    //     })
+    //     const { setAuth } = useAuth()
+    //     setAuth(response.data.token, response.data.user)
+
+    //     if (this.form.remember) {
+    //       localStorage.setItem('rememberMe', 'true')
+    //     }
+   
+    //     if (response.success){
+    //          this.toast.success("Login successfull!!")
+    //          this.$router.push('/dashboard')
+    //     }else{
+    //       this.error = response.message;
+    //       if (response.error){
+    //         this.error = response.error
+    //       }
+    //     }
+        
+        
+    //     // Redirect to dashboard
+    //     // this.$router.push('/dashboard')
+    //   } catch (err) {
+    //     console.error('Login failed:', err)
+    //     if (err.response?.data?.message) {
+    //       this.error = err.response.data.message
+    //     } else {
+    //       this.error = 'Invalid email or password'
+    //     }
+    //   } finally {
+    //     this.isLoading = false
+    //   }
+    // }
   }
 }
 </script>

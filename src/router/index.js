@@ -43,14 +43,14 @@ const routes = [
     component: BlogPage
   },
   {
-    path: '/blog/:id',
-    name: 'BlogPost',
-    component: BlogPostPage
-  },
-  {
     path: '/blog/profile/:username',
     name: 'UserProfile',
     component: UserProfilePage
+  },
+  {
+    path: '/blog/:id',
+    name: 'BlogPost',
+    component: BlogPostPage
   },
   {
     path: '/dashboard',
@@ -88,7 +88,8 @@ const routes = [
         component: SettingsPage
       }
     ]
-  }
+  },
+  
 ]
 
 const router = createRouter({
@@ -98,28 +99,44 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach((to, from, next) => {
-  const { checkAuth } = useAuth()
-  const isAuthenticated = checkAuth()
-  
-  // Redirect to login if trying to access a protected route while not authenticated
-  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-    next({ path: '/auth/login', query: { redirect: to.fullPath } })
-    return
-  }
+  try {
+    // Initialize auth state
+    const auth = useAuth()
+    let isAuthenticated = false
 
-  // Redirect to dashboard if trying to access auth pages while authenticated
-  if (to.matched.some(record => record.meta.requiresGuest) && isAuthenticated) {
-    next('/dashboard')
-    return
-  }
+    try {
+      // Check authentication status
+      isAuthenticated = auth.checkAuth()
+    } catch (authError) {
+      console.error('Auth check failed:', authError)
+      auth.clearAuth() // Reset auth state on error
+    }
 
-  // Allow access to dashboard only if authenticated
-  if (to.path === '/dashboard' && !isAuthenticated) {
-    next('/auth/login')
-    return
-  }
+    // Handle protected routes
+    if (to.matched.some(record => record.meta.requiresAuth)) {
+      if (!isAuthenticated) {
+        next({
+          path: '/auth/login',
+          query: { redirect: to.fullPath }
+        })
+        return
+      }
+    }
 
-  next()
+    // Handle guest-only routes
+    if (to.matched.some(record => record.meta.requiresGuest)) {
+      if (isAuthenticated) {
+        next('/dashboard')
+        return
+      }
+    }
+
+    // Default: allow navigation
+    next()
+  } catch (error) {
+    console.error('Router navigation error:', error)
+    next('/auth/login') // Fallback to login page
+  }
 })
 
 export default router

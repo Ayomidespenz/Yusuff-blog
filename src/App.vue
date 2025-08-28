@@ -12,16 +12,18 @@ export default {
 
   data() {
     return {
-      auth: null, // we'll store useAuth here
+      auth: useAuth(), // keep composable instance here
     }
   },
 
   created() {
-    // initialize the composable here
-    this.auth = useAuth()
-
-    // now we can call its methods
-    this.auth.checkAuth()
+    try {
+      this.auth.checkAuth()
+    } catch (error) {
+      console.error('Auth check failed:', error)
+      // Reset auth state
+      this.auth.clearAuth()
+    }
   }
 }
 </script>

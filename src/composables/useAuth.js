@@ -6,19 +6,37 @@ const user = ref(null)
 
 export function useAuth() {
   const checkAuth = () => {
-    const token = localStorage.getItem('authToken')
-    const isLoggedIn = localStorage.getItem('isLoggedIn')
-    const userData = localStorage.getItem('userData')
-    
-    if (token && isLoggedIn === 'true' && userData) {
-      isAuthenticated.value = true
-      user.value = JSON.parse(userData)
-    } else {
+    try {
+      const token = localStorage.getItem('authToken')
+      const isLoggedIn = localStorage.getItem('isLoggedIn')
+      const userData = localStorage.getItem('userData')
+      
+      // First clear the current state
       isAuthenticated.value = false
       user.value = null
+
+      // Only try to parse userData if all required data exists
+      if (token && isLoggedIn === 'true' && userData) {
+        try {
+          const parsedUser = JSON.parse(userData)
+          if (parsedUser) {
+            isAuthenticated.value = true
+            user.value = parsedUser
+          }
+        } catch (parseError) {
+          console.error('Failed to parse user data:', parseError)
+          // Clear invalid data
+          localStorage.removeItem('authToken')
+          localStorage.removeItem('isLoggedIn')
+          localStorage.removeItem('userData')
+        }
+      }
+      
+      return isAuthenticated.value
+    } catch (error) {
+      console.error('Auth check failed:', error)
+      return false
     }
-    
-    return isAuthenticated.value
   }
 
   const setAuth = (token, userData) => {

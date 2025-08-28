@@ -271,7 +271,7 @@ export default {
               avatar: post.user?.avatar
                 ? post.user.avatar.startsWith('http')
                   ? post.user.avatar
-                  : `${process.env.VUE_APP_API_URL}${post.user.avatar}`
+                  : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${post.user.avatar}`
                 : null
             },
             date: post.created_at 

@@ -101,6 +101,33 @@ export const useUserStore = defineStore('user', {
       }
     },
 
+    async changePassword(passwordData) {
+      this.loading = true;
+      this.error = null;
+      try {
+        // Laravel expects 'current_password', 'password', and 'password_confirmation'
+        const payload = {
+          current_password: passwordData.current_password,
+          password: passwordData.new_password,
+          password_confirmation: passwordData.new_password_confirmation
+        };
+        
+        const response = await authAPI.updatePassword(payload);
+        
+        if (response.data.success) {
+          return { success: true, data: response.data.data };
+        }
+        throw new Error(response.data?.message || 'Failed to change password');
+      } catch (error) {
+        console.error('Password change error:', error);
+        const message = error.response?.data?.message || error.message;
+        this.error = message;
+        throw new Error(message);
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async logout() {
       try {
         await authAPI.logout()

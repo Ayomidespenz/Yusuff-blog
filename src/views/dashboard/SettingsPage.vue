@@ -227,7 +227,7 @@
                   </div>
                   <div class="d-flex justify-content-between align-items-center">
                     <span class="text-muted">Account Created</span>
-                    <span class="fw-bold">Jan 15, 2024</span>
+                    <span class="fw-bold">Aug 05, 2025</span>
                   </div>
                 </div>
               </div>

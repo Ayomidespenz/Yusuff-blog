@@ -7,7 +7,7 @@
           <div class="col-auto position-relative">
             <img :src="profile.avatar" alt="Profile avatar" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover;">
             <label class="position-absolute bottom-0 end-0 btn btn-primary btn-sm rounded-circle p-1" style="cursor: pointer">
-              <input type="file" class="d-none" accept="image/*" @change="handleAvatarUpload">
+              <input type="file" class="d-none"  @change="handleAvatarUpload">
               <i class="bi bi-camera-fill"></i>
             </label>
           </div>
@@ -26,11 +26,11 @@
         <form @submit.prevent="updateProfile">
           <div class="mb-3">
             <label class="form-label">Name</label>
-            <input v-model="profile.name" type="text" class="form-control" required>
+            <input v-model="profile.name" type="text" class="form-control" >
           </div>
           <div class="mb-3">
             <label class="form-label">Email</label>
-            <input v-model="profile.email" type="email" class="form-control" required>
+            <input v-model="profile.email" type="email" class="form-control" >
           </div>
           <div class="mb-3">
             <label class="form-label">Bio</label>
@@ -122,7 +122,7 @@ export default {
       profile: {
         name: userStore.user?.name || '',
         email: userStore.user?.email || '',
-        avatar: userStore.user?.avatar || '/placeholder-user.jpg',
+        avatar: userStore.user?.avatar || '',
         bio: userStore.user?.bio || '',
         location: userStore.user?.location || '',
         website: userStore.user?.website || '',
@@ -174,7 +174,7 @@ export default {
     },
 
     async updateProfile() {
-      if (!this.profile.name.trim() || !this.profile.email.trim()) {
+      if (!this.profile.name.trim() && !this.profile.email.trim()) {
         alert("Name and Email are required.")
         return
       }
@@ -221,14 +221,19 @@ export default {
     },
 
     async changePassword() {
+      // Validate required fields
       if (!this.password.current || !this.password.new || !this.password.confirm) {
         alert("Please fill in all password fields.")
         return
       }
+
+      // Validate password match
       if (this.password.new !== this.password.confirm) {
         alert("New passwords do not match.")
         return
       }
+
+      // Validate password length
       if (this.password.new.length < 8) {
         alert("New password must be at least 8 characters long.")
         return
@@ -236,21 +241,27 @@ export default {
 
       this.changingPassword = true
       try {
-        const result = await this.userStore.changePassword({
+        // Prepare data for the API
+        const passwordData = {
           current_password: this.password.current,
           new_password: this.password.new,
           new_password_confirmation: this.password.confirm
-        })
+        };
 
-        if (result && result.success) {
-          alert("Password changed successfully!")
-          this.password.current = this.password.new = this.password.confirm = ""
-        }
+        // Call the user store method
+        await this.userStore.changePassword(passwordData);
+        
+        // Clear the form on success
+        this.password.current = '';
+        this.password.new = '';
+        this.password.confirm = '';
+        alert("Password changed successfully!");
       } catch (err) {
-        console.error("Password change error:", err)
-        alert(err.message || "Failed to change password.")
+        console.error("Password change error:", err);
+        // Display the error message from the API or a fallback
+        alert(err.message || "Failed to change password.");
       } finally {
-        this.changingPassword = false
+        this.changingPassword = false;
       }
     },
 

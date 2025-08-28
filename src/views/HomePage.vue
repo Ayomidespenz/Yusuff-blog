@@ -18,7 +18,7 @@
           <nav class="navbar-nav ms-auto me-4">
             <router-link to="/blog" class="nav-link fw-medium">Explore</router-link>
             <a href="#features" class="nav-link fw-medium">Features</a>
-            <a href="#pricing" class="nav-link fw-medium">Pricing</a>
+            <!-- <a href="#pricing" class="nav-link fw-medium">Pricing</a> -->
           </nav>
           <div class="d-flex gap-2">
             <template v-if="!authUser">
@@ -257,9 +257,9 @@
               <li class="mb-2">
                 <a href="#features" class="text-muted text-decoration-none hover-primary">Features</a>
               </li>
-              <li class="mb-2">
+              <!-- <li class="mb-2">
                 <a href="#pricing" class="text-muted text-decoration-none hover-primary">Pricing</a>
-              </li>
+              </li> -->
               <li class="mb-2">
                 <router-link to="/blog" class="text-muted text-decoration-none hover-primary">Blog</router-link>
               </li>
